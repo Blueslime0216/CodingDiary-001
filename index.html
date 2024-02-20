@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>001</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: black; /* 배경을 검은색으로 변경 */
+        }
+        .circle {
+            position: absolute;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            user-select: none; /* 드래그 방지 */
+            -webkit-user-drag: none; /* 웹킷 기반 브라우저에서 드래그 방지 */
+        }
+    </style>
+</head>
+<body>
+    <div id="overlay"></div>
+    <canvas id="bgCanvas" style="display: none;"></canvas>
+    <script>
+        class Circle {
+            constructor(x, y, mass) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.mass = mass;
+                
+                this.element = document.createElement('div');
+                this.element.classList.add('circle');
+                document.body.appendChild(this.element);
+
+                // 이 원의 질량에 따라 width, height를 설정하는 코드
+                this.element.style.width = `${20 + this.mass/5}px`;
+                this.element.style.height = `${20 + this.mass/5}px`;
+
+                this.updatePosition();
+            }
+
+            applyForce(forceX, forceY) {
+                this.vx += forceX;
+                this.vy += forceY;
+            }
+
+            updatePosition() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 색상 업데이트 로직
+                const color = getColorAtPosition(this.x, this.y);
+                this.element.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+
+                this.vx *= 0.91;
+                this.vy *= 0.91;
+
+                if (this.x <= 0 || this.x + this.element.offsetWidth >= window.innerWidth) {
+                    this.vx = -this.vx * 0.9;
+                    this.x += this.vx;
+                }
+                if (this.y <= 0 || this.y + this.element.offsetHeight >= window.innerHeight) {
+                    this.vy = -this.vy * 0.9;
+                    this.y += this.vy;
+                }
+
+                this.element.style.left = `${this.x}px`;
+                this.element.style.top = `${this.y}px`;
+
+                requestAnimationFrame(this.updatePosition.bind(this));
+            }
+        }
+
+        // 이미지 로드 및 캔버스 설정
+        const bgCanvas = document.getElementById('bgCanvas');
+        const ctx = bgCanvas.getContext('2d');
+        const bgImage = new Image();
+        bgImage.onload = function() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+            ctx.drawImage(bgImage, 0, 0, bgCanvas.width, bgCanvas.height);
+        };
+        bgImage.src = 'bg.png'; // 이미지 경로 설정
+
+        function getColorAtPosition(x, y) {
+            const imageData = ctx.getImageData(x, y, 1, 1).data;
+            return { r: imageData[0], g: imageData[1], b: imageData[2] };
+        }
+
+        const circles = [];
+        for (let i = 50; i <= 300; i += 10) {
+            circles.push(new Circle(100, 100, i));
+        }
+
+        let isMouseDown = false;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        document.addEventListener('mousedown', (event) => {
+            isMouseDown = true;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+            for (let i = 0; i < 5; i++) {
+                attractCircles();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+            if (isMouseDown) {
+                attractCircles();
+            }
+        });
+
+        function attractCircles() {
+            circles.forEach(circle => {
+                const dx = mouseX - circle.x;
+                const dy = mouseY - circle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                
+                const force = 0.01; // Reduced force for smoother animation
+                const ax = (dx / distance) * force * circle.mass;
+                const ay = (dy / distance) * force * circle.mass;
+
+                circle.applyForce(ax, ay);
+            });
+
+            if (isMouseDown) {
+                requestAnimationFrame(attractCircles);
+            }
+        }
+    </script>
+</body>
+</html>
